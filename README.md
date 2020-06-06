@@ -21,14 +21,6 @@ To meet specifications, the project will require submitting five files:
 
 This README file describes how to output the video in the "Details About Files In This Directory" section.
 
-Creating a Great Writeup
----
-A great writeup should include the [rubric points](https://review.udacity.com/#!/rubrics/432/view) as well as your description of how you addressed each point.  You should include a detailed description of the code used (with line-number references and code snippets where necessary), and links to other supporting documents or external references.  You should include images in your writeup to demonstrate how your code works with examples.  
-
-All that said, please be concise!  We're not looking for you to write a book here, just a brief description of how you passed each rubric point, and references to the relevant code :). 
-
-You're not required to use markdown for your writeup.  If you use another method please just submit a pdf of your writeup.
-
 The Project
 ---
 The goals / steps of this project are the following:
@@ -120,6 +112,140 @@ Will run the video at 48 FPS. The default FPS is 60.
 ### Tips
 - Please keep in mind that training images are loaded in BGR colorspace using cv2 while drive.py load images in RGB to predict the steering angles.
 
-## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
+---
+
+## Project Writeup
+
+#### 1. Submission includes all required files and can be used to run the simulator in autonomous mode
+
+My project includes the following files:
+
+- model.py containing the script to create and train the model
+- model.ipynb python notebook containing the code to create and train the model
+- drive.py for driving the car in autonomous mode
+- model.h5 containing a trained convolution neural network 
+- writeup_report.md  summarizing the results
+
+#### 2. Submission includes functional code
+
+Using the Udacity provided simulator and my drive.py file, the car can be driven autonomously around the track by executing 
+
+```sh
+python drive.py model.h5
+```
+
+#### 3. Submission code is usable and readable
+
+The model.py file contains the code for training and saving the convolution neural network. The file shows the pipeline I used for training and validating the model.
+
+---
+
+## Model Architecture and Training Strategy
+
+### Model Overview
+
+- The model architecture build with references to [NVIDIA  - End to End Learning for Self-Driving Cars ](https://images.nvidia.com/content/tegra/automotive/images/2016/solutions/pdf/end-to-end-dl-using-px.pdf) 
+  This model takes input images with shape `[60, 266, 3]` but our generated images are shape `[160, 320,3]`. Hence input shape given to this model is changed 
+
+<img src="./images/NVIDIA.JPG">
+
+
+
+### Loading Data
+
+- I used my own dataset.
+
+- OpenCV library read images in BGR format, converted them to RGB format because drive.py processes in RGB format too.
+
+- We have steering angle associated with three images, As steering angle is capture by the center angle, we can add correction factor for left and right images.
+
+- Introduced correction factor of `+/- 0.2` 
+
+- Left images : increased steering angle `+0.2`and right images: decreased steering angle by `-0.2`
+
+  ​			Following is sample image capture by simulator,
+
+<img src="./images/center_2019_07_28_17_36_48_266.jpg">
+
+### Preprocessing
+
+- Shuffling images: to make CNN more robust to independent of order in which images come next.
+- Data augmentation: Getting appropriate steering angle by flipping image horizontally using cv2 with factor of `-1`.
+- With this approach I generated 6 more images for each entry in .csv
+
+### Creation of the Training Set & Validation Set
+
+- I split dataset as follows validation dataset: `15%` and training dataset: `85%`
+
+- To avoid loading all the images in the memory at once, I used generator to generate the data at runtime in batches of `32` with all augmented images.
+
+### Revised Model Architecture
+
+|           Layer (Type)           |    Output Shape     | Param # |      Connected to       |
+| :------------------------------: | :-----------------: | :-----: | :---------------------: |
+|        lambda_3 (Lambda)         | (None, 160, 320, 3) |    0    | lambda_input_3 \[0][0]  |
+|    cropping2d_3 (Cropping2D)     | (None, 65, 320, 3)  |    0    |     lambda_3\[0][0]     |
+| convolution2d_11 (Convolution2D) | (None, 31, 158, 24) |  1824   |  cropping2d_3 \[0][0]   |
+|    activation_17 (Activation)    | (None, 31, 158, 24) |    0    | convolution2d_11\[0][0] |
+| convolution2d_12 (Convolution2D) | (None, 14, 77, 36)  |  21636  |  activation_17\[0][0]   |
+|    activation_18 (Activation)    | (None, 14, 77, 36)  |    0    | convolution2d_12\[0][0] |
+| convolution2d_13 (Convolution2D) |  (None, 5, 37, 48)  |  43248  |  activation_18\[0][0]   |
+|    activation_19 (Activation)    |  (None, 5, 37, 48)  |    0    | convolution2d_13\[0][0] |
+| convolution2d_14 (Convolution2D) |  (None, 3, 35, 64)  |  27712  |  activation_19\[0][0]   |
+|    activation_20 (Activation)    |  (None, 3, 35, 64)  |    0    | convolution2d_14\[0][0] |
+| convolution2d_15 (Convolution2D) |  (None, 1, 33, 64)  |  36928  |  activation_20\[0][0]   |
+|    activation_21 (Activation)    |  (None, 1, 33, 64)  |    0    | convolution2d_15\[0][0] |
+|       flatten_3 (Flatten)        |    (None, 2112)     |    0    |  activation_21\[0][0]   |
+|         dense_9 (Dense)          |     (None, 100)     | 211300  |    flatten_3\[0][0]     |
+|    activation_22 (Activation)    |     (None, 100)     |    0    |     dense_9\[0][0]      |
+|       dropout_3 (Dropout)        |     (None, 100)     |    0    |  activation_22\[0][0]   |
+|         dense_10 (Dense)         |     (None, 50)      |  5050   |    dropout_3\[0][0]     |
+|    activation_23 (Activation)    |     (None, 50)      |    0    |     dense_10\[0][0]     |
+|         dense_11 (Dense)         |     (None, 10)      |   510   |  activation_23\[0][0]   |
+|    activation_24 (Activation)    |     (None, 10)      |    0    |     dense_11\[0][0]     |
+|         dense_12 (Dense)         |      (None, 1)      |   11    |  activation_24\[0][0]   |
+
+- I have applied normalization to all the images
+
+- To remove trees and sky, cropped image from top by `70pixels` and to remove dashboard from image cropped images from bottom by `25pixels`.
+
+  ​				
+
+  ​					sample image and cropped image
+
+<img src="./images/center_2016_12_01_13_32_53_357.jpg">
+
+<img src="./images/center_2016_12_01_13_32_53_357_cropped.jpg">
+
+- Next Step is to define the first convolutional layer with filter depth as 24 and filter size as (5,5) with (2,2) stride followed by ELU activation function
+- Moving on to the second convolutional layer with filter depth as 36 and filter size as (5,5) with (2,2) stride followed by ELU activation function 
+- The third convolutional layer with filter depth as 48 and filter size as (5,5) with (2,2) stride followed by ELU activation function
+- Next we define two convolutional layer with filter depth as 64 and filter size as (3,3) and (1,1) stride followed by ELU activation funciton
+- Next step is to flatten the output from 2D to side by side
+- Here we apply first fully connected layer with 100 outputs
+- Here is the first time when we introduce Dropout with Dropout rate as 0.25 to combact overfitting
+- Next we introduce second fully connected layer with 50 outputs
+- Then comes a third connected layer with 10 outputs
+- And finally the layer with one output.
+
+Reason for having only one output because we want to predict is the steering angle.
+
+#### Overfitting 
+
+- applied Dropout layer after fully connected layer with `0.25` dropout rate.
+
+### Model parameter tuning 
+
+- Number of epochs: `1`
+- Optimizer: `Adam Optimizer`
+- Learning Rate: `0.001`
+- Validation Data split: `0.15`
+- Batch size: `32`
+- Correction factor: `0.2`
+- Loss Function: basic `Mean Sqaured Error` (regression problem)
+
+### OUTPUT video
+
+- [Output video for generated dataset](./run2.mp4)
+- [Output video for udacity dataset](./run1.mp4)
 
