@@ -246,6 +246,6 @@ Reason for having only one output because we want to predict is the steering ang
 
 ### OUTPUT video
 
-- [Output video for generated dataset](./run2.mp4)
+- [Output video for generated dataset](./output_video.mp4)
 - [Output video for udacity dataset](./run1.mp4)
 
